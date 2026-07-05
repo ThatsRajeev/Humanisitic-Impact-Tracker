@@ -10,8 +10,7 @@ datasource db {
 
 model User {
   id           String       @id @default(uuid())
-  name         String       
-  email        String       @unique
+  name         String       @unique
   role         String       @default("PARTICIPANT") // ADMIN or PARTICIPANT
   score        Int          @default(0)
   progresses   Progress[]

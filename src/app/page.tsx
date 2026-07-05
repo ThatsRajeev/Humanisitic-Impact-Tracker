@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { User, Activity, Progress, Attestation } from '@prisma/client';
-import { Trophy, CheckCircle, PlusCircle, Star, ThumbsUp, LogOut, Loader2 } from 'lucide-react';
+import { Trophy, CheckCircle, PlusCircle, Star, ThumbsUp, LogOut, Loader2, Sparkles } from 'lucide-react';
 
 type ProgressWithRelations = Progress & {
   user: User;
@@ -14,7 +14,6 @@ type ProgressWithRelations = Progress & {
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   
   const [activities, setActivities] = useState<Activity[]>([]);
   const [progressFeed, setProgressFeed] = useState<ProgressWithRelations[]>([]);
@@ -32,6 +31,10 @@ export default function Home() {
   const [isSubmittingProgress, setIsSubmittingProgress] = useState(false);
   const [isCreatingActivity, setIsCreatingActivity] = useState(false);
   const [attestingId, setAttestingId] = useState<string | null>(null);
+
+  // Collision State
+  const [collisionDetected, setCollisionDetected] = useState(false);
+  const [tempUser, setTempUser] = useState<User | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('hl_user');
@@ -64,18 +67,25 @@ export default function Home() {
     }
   }, [user, fetchData]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || !email.trim()) return;
+  const handleLogin = async (e: React.FormEvent, confirmReturning = false) => {
+    e?.preventDefault();
+    if (!name.trim()) return;
     setIsLoggingIn(true);
     try {
       const res = await axios.post('/api/auth', { 
         name: name.trim(),
-        email: email.trim().toLowerCase(),
-        role: name.trim().toLowerCase() === 'admin' ? 'ADMIN' : 'PARTICIPANT'
+        role: name.trim().toLowerCase() === 'admin' ? 'ADMIN' : 'PARTICIPANT',
+        confirmReturning
       });
-      setUser(res.data);
-      localStorage.setItem('hl_user', JSON.stringify(res.data));
+      
+      if (res.data.exists && !confirmReturning) {
+        setCollisionDetected(true);
+        setTempUser(res.data.user);
+      } else {
+        setUser(res.data.user);
+        localStorage.setItem('hl_user', JSON.stringify(res.data.user));
+        setCollisionDetected(false);
+      }
     } catch (e) {
       console.error(e);
       alert('Failed to login. Please try again.');
@@ -86,6 +96,8 @@ export default function Home() {
 
   const handleLogout = () => {
     setUser(null);
+    setCollisionDetected(false);
+    setName('');
     localStorage.removeItem('hl_user');
   };
 
@@ -155,44 +167,62 @@ export default function Home() {
             <h1 className="text-3xl font-bold text-indigo-900">Humanistic Leadership</h1>
             <p className="text-gray-500">Share your journey, inspire others.</p>
           </div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-black focus:border-indigo-500 focus:ring-indigo-500"
-                placeholder="e.g. Jane Doe"
-                required
-              />
+
+          {!collisionDetected ? (
+            <form onSubmit={(e) => handleLogin(e, false)} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Enter your name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-black focus:border-indigo-500 focus:ring-indigo-500"
+                  placeholder="e.g. Jane Doe"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isLoggingIn}
+                className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                    Joining...
+                  </>
+                ) : (
+                  'Join Program'
+                )}
+              </button>
+            </form>
+          ) : (
+            <div className="space-y-4 bg-indigo-50 p-6 rounded-xl border border-indigo-100 text-center">
+              <Sparkles className="h-8 w-8 text-indigo-500 mx-auto mb-2" />
+              <h2 className="text-lg font-bold text-indigo-900">Hold on! A leader named <span className="text-indigo-600">{tempUser?.name}</span> is already here.</h2>
+              <p className="text-sm text-gray-600">Are you returning, or are you a new leader sharing this great name?</p>
+              
+              <div className="space-y-3 pt-4">
+                <button
+                  onClick={(e) => handleLogin(e, true)}
+                  disabled={isLoggingIn}
+                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
+                >
+                  Yes, that&apos;s me returning!
+                </button>
+                <button
+                  onClick={() => {
+                    setCollisionDetected(false);
+                    setName(`${name} the Great`);
+                  }}
+                  disabled={isLoggingIn}
+                  className="w-full flex justify-center py-2 px-4 border border-indigo-200 rounded-md shadow-sm text-sm font-medium text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none"
+                >
+                  No, let&apos;s make my name unique!
+                </button>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Email Address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-black focus:border-indigo-500 focus:ring-indigo-500"
-                placeholder="jane@company.com"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isLoggingIn}
-              className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {isLoggingIn ? (
-                <>
-                  <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                  Joining...
-                </>
-              ) : (
-                'Join Program'
-              )}
-            </button>
-          </form>
+          )}
         </div>
       </div>
     );
