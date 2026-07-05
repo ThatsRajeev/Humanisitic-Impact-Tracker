@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(uuid())
+  name         String       @unique
+  role         String       @default("PARTICIPANT") // ADMIN or PARTICIPANT
+  score        Int          @default(0)
+  progresses   Progress[]
+  attestations Attestation[]
+  createdAt    DateTime     @default(now())
+}
+
+model Activity {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  points      Int        @default(10)
+  progresses  Progress[]
+  createdAt   DateTime   @default(now())
+}
+
+model Progress {
+  id           String        @id @default(uuid())
+  text         String
+  userId       String
+  activityId   String
+  user         User          @relation(fields: [userId], references: [id])
+  activity     Activity      @relation(fields: [activityId], references: [id])
+  attestations Attestation[]
+  createdAt    DateTime      @default(now())
+}
+
+model Attestation {
+  id         String   @id @default(uuid())
+  userId     String
+  progressId String
+  user       User     @relation(fields: [userId], references: [id])
+  progress   Progress @relation(fields: [progressId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, progressId])
+}
