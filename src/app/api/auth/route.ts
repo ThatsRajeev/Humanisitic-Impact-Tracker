@@ -3,19 +3,19 @@ import prisma from '@/lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    const { name, role } = await req.json();
+    const { name, email, role } = await req.json();
     
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    if (!name || !email) {
+      return NextResponse.json({ error: 'Name and email are required' }, { status: 400 });
     }
 
     let user = await prisma.user.findUnique({
-      where: { name },
+      where: { email },
     });
 
     if (!user) {
       user = await prisma.user.create({
-        data: { name, role: role || 'PARTICIPANT' },
+        data: { name, email, role: role || 'PARTICIPANT' },
       });
     }
 

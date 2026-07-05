@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { User, Activity, Progress, Attestation } from '@prisma/client';
-import { Trophy, CheckCircle, PlusCircle, Star, ThumbsUp, LogOut } from 'lucide-react';
+import { Trophy, CheckCircle, PlusCircle, Star, ThumbsUp, LogOut, Loader2 } from 'lucide-react';
 
 type ProgressWithRelations = Progress & {
   user: User;
@@ -14,6 +14,7 @@ type ProgressWithRelations = Progress & {
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   
   const [activities, setActivities] = useState<Activity[]>([]);
   const [progressFeed, setProgressFeed] = useState<ProgressWithRelations[]>([]);
@@ -25,6 +26,12 @@ export default function Home() {
   const [newActivityTitle, setNewActivityTitle] = useState('');
   const [newActivityDesc, setNewActivityDesc] = useState('');
   const [newActivityPoints, setNewActivityPoints] = useState(10);
+
+  // Loading States
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isSubmittingProgress, setIsSubmittingProgress] = useState(false);
+  const [isCreatingActivity, setIsCreatingActivity] = useState(false);
+  const [attestingId, setAttestingId] = useState<string | null>(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('hl_user');
@@ -59,16 +66,21 @@ export default function Home() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !email.trim()) return;
+    setIsLoggingIn(true);
     try {
       const res = await axios.post('/api/auth', { 
         name: name.trim(),
+        email: email.trim().toLowerCase(),
         role: name.trim().toLowerCase() === 'admin' ? 'ADMIN' : 'PARTICIPANT'
       });
       setUser(res.data);
       localStorage.setItem('hl_user', JSON.stringify(res.data));
     } catch (e) {
       console.error(e);
+      alert('Failed to login. Please try again.');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -80,6 +92,7 @@ export default function Home() {
   const submitProgress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!progressText.trim() || !selectedActivityId) return;
+    setIsSubmittingProgress(true);
     try {
       await axios.post('/api/progress', {
         text: progressText,
@@ -87,27 +100,35 @@ export default function Home() {
         activityId: selectedActivityId
       });
       setProgressText('');
-      fetchData();
+      await fetchData();
     } catch (e) {
       console.error(e);
+      alert('Failed to submit progress. Please try again.');
+    } finally {
+      setIsSubmittingProgress(false);
     }
   };
 
   const handleAttest = async (progressId: string) => {
+    setAttestingId(progressId);
     try {
       await axios.post('/api/attest', {
         userId: user!.id,
         progressId
       });
-      fetchData();
+      await fetchData();
     } catch (e) {
       console.error(e);
+      alert('Failed to attest. Please try again.');
+    } finally {
+      setAttestingId(null);
     }
   };
 
   const createActivity = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newActivityTitle.trim() || !newActivityDesc.trim()) return;
+    setIsCreatingActivity(true);
     try {
       await axios.post('/api/activities', {
         title: newActivityTitle,
@@ -117,9 +138,12 @@ export default function Home() {
       setNewActivityTitle('');
       setNewActivityDesc('');
       setNewActivityPoints(10);
-      fetchData();
+      await fetchData();
     } catch (e) {
       console.error(e);
+      alert('Failed to create activity. Please try again.');
+    } finally {
+      setIsCreatingActivity(false);
     }
   };
 
@@ -133,7 +157,7 @@ export default function Home() {
           </div>
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Enter your name</label>
+              <label className="block text-sm font-medium text-gray-700">Name</label>
               <input
                 type="text"
                 value={name}
@@ -143,11 +167,30 @@ export default function Home() {
                 required
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-black focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="jane@company.com"
+                required
+              />
+            </div>
             <button
               type="submit"
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              disabled={isLoggingIn}
+              className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              Join Program
+              {isLoggingIn ? (
+                <>
+                  <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                  Joining...
+                </>
+              ) : (
+                'Join Program'
+              )}
             </button>
           </form>
         </div>
@@ -216,9 +259,17 @@ export default function Home() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    disabled={isSubmittingProgress}
+                    className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    Share Progress
+                    {isSubmittingProgress ? (
+                      <>
+                        <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                        Sharing...
+                      </>
+                    ) : (
+                      'Share Progress'
+                    )}
                   </button>
                 </form>
               )}
@@ -263,9 +314,17 @@ export default function Home() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-indigo-600 bg-white hover:bg-indigo-50 border-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    disabled={isCreatingActivity}
+                    className="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-indigo-600 bg-white hover:bg-indigo-50 border-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-70 disabled:cursor-not-allowed"
                   >
-                    Post Activity
+                    {isCreatingActivity ? (
+                      <>
+                        <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
+                        Posting...
+                      </>
+                    ) : (
+                      'Post Activity'
+                    )}
                   </button>
                 </form>
               </div>
@@ -306,6 +365,7 @@ export default function Home() {
             ) : (
               progressFeed.map((prog) => {
                 const hasAttested = prog.attestations.some(a => a.userId === user.id);
+                const isAttesting = attestingId === prog.id;
                 return (
                   <div key={prog.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 transition hover:shadow-md">
                     <div className="flex justify-between items-start mb-4">
@@ -331,15 +391,19 @@ export default function Home() {
                         {prog.userId !== user.id && (
                           <button
                             onClick={() => handleAttest(prog.id)}
-                            disabled={hasAttested}
+                            disabled={hasAttested || isAttesting}
                             className={`flex items-center space-x-1 px-3 py-1.5 rounded-full text-xs font-medium transition ${
                               hasAttested 
                                 ? 'bg-green-50 text-green-600 cursor-not-allowed' 
-                                : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600'
+                                : 'bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed'
                             }`}
                           >
-                            <ThumbsUp className="h-4 w-4" />
-                            <span>{hasAttested ? 'Attested' : 'Attest'}</span>
+                            {isAttesting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <ThumbsUp className="h-4 w-4" />
+                            )}
+                            <span>{isAttesting ? 'Attesting...' : hasAttested ? 'Attested' : 'Attest'}</span>
                           </button>
                         )}
                       </div>
