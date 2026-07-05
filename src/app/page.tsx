@@ -142,7 +142,6 @@ export default function Home() {
                 placeholder="e.g. Jane Doe"
                 required
               />
-              <p className="text-xs text-gray-500 mt-2">Login with &apos;admin&apos; to access admin features.</p>
             </div>
             <button
               type="submit"

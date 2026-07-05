@@ -13,7 +13,8 @@ export async function GET() {
     });
     return NextResponse.json(progresses);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch progress' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to fetch progress', details: String(error) }, { status: 500 });
   }
 }
 
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(progress);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to submit progress' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to submit progress', details: String(error) }, { status: 500 });
   }
 }

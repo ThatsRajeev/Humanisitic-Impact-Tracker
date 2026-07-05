@@ -21,6 +21,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(user);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to authenticate user' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to authenticate user', details: String(error) }, { status: 500 });
   }
 }

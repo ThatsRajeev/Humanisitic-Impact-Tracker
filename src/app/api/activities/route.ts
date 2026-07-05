@@ -8,7 +8,8 @@ export async function GET() {
     });
     return NextResponse.json(activities);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch activities' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to fetch activities', details: String(error) }, { status: 500 });
   }
 }
 
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(activity);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to create activity' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to create activity', details: String(error) }, { status: 500 });
   }
 }

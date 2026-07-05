@@ -14,6 +14,7 @@ export async function GET() {
     });
     return NextResponse.json(users);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch leaderboard' }, { status: 500 });
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to fetch leaderboard', details: String(error) }, { status: 500 });
   }
 }
